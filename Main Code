@@ -1,0 +1,387 @@
+### training 1 ###
+# This part is for demostraiting the program by showing the faces and the commen key points
+
+# Sources
+# https://docs.opencv.org/4.x/dc/da5/tutorial_py_drawing_functions.html
+# Srouces
+# https://docs.opencv.org/3.4/d5/d6f/tutorial_feature_flann_matcher.html
+
+# AIGS1010 - Camputer vision, week 6 demo:
+    # https://loyalistcollege.instructure.com/courses/10557/pages/demo-resources?module_item_id=619758
+# https://www.geeksforgeeks.org/python-grayscaling-of-images-using-opencv/
+
+
+import cv2
+import os
+from matplotlib import pyplot as plt
+
+# step 1:
+# Load the pre-trained face detector
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Initialize SIFT
+sift = cv2.SIFT_create()
+
+
+##################################################################################
+# step 2:
+# Path to the directory containing the images to be used for trauning and testing
+
+image_dir = r"C:\Users\ninubasheer\Desktop\Face recognition\gt_db\gt_database 1\gt_database 1\gt_db\Aidan"
+
+
+# Get a list of all image filenames in the directory 
+image_files = [file for file in os.listdir(image_dir) if file.endswith('.jpg')]
+
+#################################################################################
+#step 3:
+# https://www.geeksforgeeks.org/python-grayscaling-of-images-using-opencv/
+
+for i in range(len(image_files)): # all the images in the directory
+    for j in range(i+1, len(image_files)): # i and j will be used to compair the pictures to each other
+        # Read the images
+        img1 = cv2.imread(os.path.join(image_dir, image_files[i]), cv2.IMREAD_GRAYSCALE)
+        img2 = cv2.imread(os.path.join(image_dir, image_files[j]), cv2.IMREAD_GRAYSCALE)
+        
+        # Detect the faces in all of the pictures
+        faces1 = face_cascade.detectMultiScale(img1, scaleFactor=1.1, minNeighbors=5)
+        faces2 = face_cascade.detectMultiScale(img2, scaleFactor=1.1, minNeighbors=5)
+        
+        # Initialize lists to store common keypoints
+        common_kp1 = []
+        common_kp2 = []
+        
+        # https://www.geeksforgeeks.org/python-grayscaling-of-images-using-opencv/
+        # Extract keypoints and descriptors only within the detected faces
+        for (x, y, w, h) in faces1:
+            face_roi = img1[y:y+h, x:x+w]
+            kp1, des1 = sift.detectAndCompute(face_roi, None)
+            common_kp1.extend(kp1)
+            cv2.rectangle(img1, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            for kp in common_kp1:
+                cv2.circle(img1, (int(kp.pt[0]) + x, int(kp.pt[1]) + y), 5, (0, 255, 0), -1)
+        
+        for (x, y, w, h) in faces2:
+            face_roi = img2[y:y+h, x:x+w]
+            kp2, des2 = sift.detectAndCompute(face_roi, None)
+            common_kp2.extend(kp2)
+            cv2.rectangle(img2, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            for kp in common_kp2:
+                cv2.circle(img2, (int(kp.pt[0]) + x, int(kp.pt[1]) + y), 5, (0, 255, 0), -1)
+
+#################################################################################
+# step 3.1
+        # Display the images with faces and common keypoints
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        axes[0].imshow(img1, cmap='gray')
+        axes[0].set_title(f'{image_files[i]} Common Keypoints')
+        axes[0].axis('off')
+
+        axes[1].imshow(img2, cmap='gray')
+        axes[1].set_title(f'{image_files[j]} Common Keypoints')
+        axes[1].axis('off')
+
+        plt.show()
+
+        # Compare the number of common keypoints in both faces
+        print("Number of common keypoints in", image_files[i], ":", len(common_kp1))
+        print("Number of common keypoints in", image_files[j], ":", len(common_kp2))
+
+
+
+### Training 2 ###
+# A calculator for the average ratio of common points between all training faces
+
+import cv2
+import os
+import numpy as np
+
+# Load the pre-trained face detector
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Initialize SIFT
+sift = cv2.SIFT_create()
+
+###########
+# Path to the directory containing the images
+image_dir = r"C:\Users\ninubasheer\Desktop\Face recognition\gt_db\gt_database 1\gt_database 1\gt_db\Aidan"
+###########
+
+# Get a list of all image filenames in the directory
+image_files = [file for file in os.listdir(image_dir) if file.endswith('.jpg')]
+
+# Initialize a list to store the average number of common keypoints for each pair of images
+average_common_keypoints = []
+
+# Iterate over each pair of images
+for i in range(len(image_files)):
+    for j in range(i+1, len(image_files)):
+        # Read the images
+        img1 = cv2.imread(os.path.join(image_dir, image_files[i]), cv2.IMREAD_GRAYSCALE)
+        img2 = cv2.imread(os.path.join(image_dir, image_files[j]), cv2.IMREAD_GRAYSCALE)
+        
+        # Detect faces in the images
+        faces1 = face_cascade.detectMultiScale(img1, scaleFactor=1.15, minNeighbors=5)
+        faces2 = face_cascade.detectMultiScale(img2, scaleFactor=1.15, minNeighbors=5)
+        
+        # Initialize lists to store common keypoints
+        common_kp1 = []
+        common_kp2 = []
+        
+        # Extract keypoints and descriptors only within the detected faces
+        for (x, y, w, h) in faces1:
+            face_roi = img1[y:y+h, x:x+w]
+            kp1, des1 = sift.detectAndCompute(face_roi, None)
+            common_kp1.extend(kp1)
+        
+        for (x, y, w, h) in faces2:
+            face_roi = img2[y:y+h, x:x+w]
+            kp2, des2 = sift.detectAndCompute(face_roi, None)
+            common_kp2.extend(kp2)
+        
+        # Calculate the average number of common keypoints for this pair of images
+        average_keypoints = ((len(common_kp1) / len(common_kp2)) + (len(common_kp2) / len(common_kp1))) / 2
+        average_common_keypoints.append(average_keypoints)
+
+# Calculate the average value of each pair of pictures divided by the other
+average_value_real = sum(average_common_keypoints) / len(average_common_keypoints)
+print("Average value of common keypoints:", average_value_real)
+
+
+
+### Testing ###
+
+
+import cv2
+import os
+from matplotlib import pyplot as plt
+
+# Load the pre-trained face detector
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Initialize SIFT
+sift = cv2.SIFT_create()
+
+
+# Path to the directory containing the training faces
+image_dir = r"C:\Users\ninubasheer\Desktop\Face recognition\gt_db\gt_database 1\gt_database 1\gt_db\Madison"
+
+
+# Path to the directory containing the face of a person wishing to enter the system
+image_dir2 = r"C:\Users\ninubasheer\Desktop\Face recognition\gt_db\gt_database 1\gt_database 1\gt_db\Emma"
+
+
+
+# Get a list of all image filenames in the directories
+image_files = [file for file in os.listdir(image_dir) if file.endswith('.jpg')]
+image_files2 = [file for file in os.listdir(image_dir2) if file.endswith('.jpg')]
+
+# Initialize a list to store the average number of common keypoints for each pair of images
+average_common_keypoints = []
+
+# Iterate over each pair of images
+for i in range(len(image_files)):
+    for j in range(len(image_files2)):
+        # The real face from training
+        img1 = cv2.imread(os.path.join(image_dir, image_files[i]), cv2.IMREAD_GRAYSCALE)
+        # The person wishing to enter
+        img2 = cv2.imread(os.path.join(image_dir2, image_files2[j]), cv2.IMREAD_GRAYSCALE)
+        
+        # The real face from training
+        faces1 = face_cascade.detectMultiScale(img1, scaleFactor=1.15, minNeighbors=5)
+        # The person wishing to enter
+        faces2 = face_cascade.detectMultiScale(img2, scaleFactor=1.15, minNeighbors=5)
+        
+        # Lists for common keypoints
+        common_kp1 = []
+        common_kp2 = []
+        
+        # Extract keypoints and descriptors only within the detected faces for real person
+        for (x, y, w, h) in faces1:
+            face_roi = img1[y:y+h, x:x+w]
+            kp1, des1 = sift.detectAndCompute(face_roi, None)
+            common_kp1.extend(kp1)
+            cv2.rectangle(img1, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            for kp in common_kp1:
+                cv2.circle(img1, (int(kp.pt[0]) + x, int(kp.pt[1]) + y), 5, (0, 255, 0), -1)
+                
+        # Extract keypoints and descriptors only within the detected faces for person wishing to enter
+        for (x, y, w, h) in faces2:
+            face_roi = img2[y:y+h, x:x+w]
+            kp2, des2 = sift.detectAndCompute(face_roi, None)
+            common_kp2.extend(kp2)
+            cv2.rectangle(img2, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            for kp in common_kp2:
+                cv2.circle(img2, (int(kp.pt[0]) + x, int(kp.pt[1]) + y), 5, (0, 255, 0), -1)
+        
+        # Calculate the average number of common keypoints for both lists, the real person, and the one wishing to enter
+        if len(common_kp1) != 0 and len(common_kp2) != 0:
+            average_keypoints = ((len(common_kp1) / len(common_kp2)) + (len(common_kp2) / len(common_kp1))) / 2
+            average_common_keypoints.append(average_keypoints)
+            
+            
+            
+            # Display the images with detected faces and common keypoints
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            axes[0].imshow(img1, cmap='gray')
+            axes[0].set_title(f'{image_files[i]} Common Keypoints')
+            axes[0].axis('off')
+            
+            axes[1].imshow(img2, cmap='gray')
+            axes[1].set_title(f'{image_files2[j]} Common Keypoints')
+            axes[1].axis('off')
+            
+            plt.show()
+            
+# Print the results of the comparison
+            print(f"Comparison between {image_files[i]} and {image_files2[j]}:")
+            print("Average value of common keypoints:", average_keypoints)
+            print("-----------------------------------------")
+
+# Check if there were any pairs with common keypoints
+if average_common_keypoints:
+    # Calculate the average value of each pair of pictures divided by the other
+    average_value_test = sum(average_common_keypoints) / len(average_common_keypoints)
+    print("Overall average value of common keypoints:", average_value_test)
+else:
+    print("No common keypoints found.")
+
+
+
+
+### Results ###
+import re
+
+# Using regular expression get only the names
+name = re.sub(r'[^A-Za-z]+', '', image_files[i].replace(".jpg", ""))
+print(f'{name}s value is: {average_value_real}.')
+print(f'Our test results are: {average_value_test}.')
+
+if average_value_test >= average_value_real:
+    print("Access denied")
+else:
+    print("Access permitted")
+
+
+
+
+!pip install numpy opencv-python
+!pip install dlib
+!pip install  
+
+     
+Requirement already satisfied: numpy in /usr/local/lib/python3.10/dist-packages (1.25.2)
+Requirement already satisfied: opencv-python in /usr/local/lib/python3.10/dist-packages (4.8.0.76)
+Requirement already satisfied: dlib in /usr/local/lib/python3.10/dist-packages (19.24.2)
+Collecting face_recognition
+  Downloading face_recognition-1.3.0-py2.py3-none-any.whl (15 kB)
+Collecting face-recognition-models>=0.3.0 (from face_recognition)
+  Downloading face_recognition_models-0.3.0.tar.gz (100.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.1/100.1 MB 10.3 MB/s eta 0:00:00
+  Preparing metadata (setup.py) ... done
+Requirement already satisfied: Click>=6.0 in /usr/local/lib/python3.10/dist-packages (from face_recognition) (8.1.7)
+Requirement already satisfied: dlib>=19.7 in /usr/local/lib/python3.10/dist-packages (from face_recognition) (19.24.2)
+Requirement already satisfied: numpy in /usr/local/lib/python3.10/dist-packages (from face_recognition) (1.25.2)
+Requirement already satisfied: Pillow in /usr/local/lib/python3.10/dist-packages (from face_recognition) (9.4.0)
+Building wheels for collected packages: face-recognition-models
+  Building wheel for face-recognition-models (setup.py) ... done
+  Created wheel for face-recognition-models: filename=face_recognition_models-0.3.0-py2.py3-none-any.whl size=100566170 sha256=3cf43b74d9e8edc38f42ce33ffad520ccbc02aa27a08c7409e07867affeeb5ee
+  Stored in directory: /root/.cache/pip/wheels/7a/eb/cf/e9eced74122b679557f597bb7c8e4c739cfcac526db1fd523d
+Successfully built face-recognition-models
+Installing collected packages: face-recognition-models, face_recognition
+Successfully installed face-recognition-models-0.3.0 face_recognition-1.3.0
+
+# create folder for training and testing data
+!mkdir train
+!mkdir test
+     
+
+# Import the necessary libraries
+import face_recognition as fr
+import cv2
+
+import numpy as np
+import os
+     
+
+# Path to the directory with the trainig data
+path = "./train/"
+
+# Lists of the names of the people in database
+known_names = []
+known_name_encodings = []
+
+# Retrieve a list of image files in the specified directory
+images = os.listdir(path)
+     
+
+# A for loop for all relevent pictures
+for _ in images:
+  # Check if the item is a file (not a directory)
+    if os.path.isfile(path + _):
+      # Load the image using face_recognition library
+        image = fr.load_image_file(path + _)
+        image_path = path + _
+
+        # Using th mduel "face_recognition" to encode the the rlevant images 
+        encoding = fr.face_encodings(image)[0]
+
+        # Append the encoding and corresponding name to the lists
+        known_name_encodings.append(encoding)
+        known_names.append(os.path.splitext(os.path.basename(image_path))[0].capitalize())
+
+# Print the list of known names from the database
+print(known_names)
+     
+['Andrew04', 'Emma14', 'Emma02', 'Aidan07', 'Andrew06', 'Emma03', 'Aidan06', 'Aidan02', 'Aidan04', 'Aidan13', 'Andrew07', 'Aidan01', 'Emma11', 'Emma05', 'Aidan11', 'Emma15', 'Andrew13', 'Emma04', 'Andrew08', 'Andrew03', 'Emma07', 'Aidan15', 'Emma08', 'Andrew14', 'Aidan10', 'Aidan09', 'Aidan03', 'Andrew10', 'Emma10', 'Andrew01', 'Emma13', 'Emma09', 'Andrew15', 'Andrew11', 'Andrew12', 'Aidan08', 'Andrew02', 'Aidan12', 'Aidan14', 'Andrew05', 'Emma01']
+
+# Path to the test image
+test_image = "./test/test1.jpg"
+# Load the image using OpenCV
+image = cv2.imread(test_image)
+
+# image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+     
+
+# Detect face locations and encodings in the test image
+face_locations = fr.face_locations(image)
+face_encodings = fr.face_encodings(image, face_locations)
+
+     
+
+# below code cell is only be used in google colab as it is having patching problems with cv imshow
+from google.colab.patches import cv2_imshow # (ignore it if using jypter notebook)
+
+# Define a default name for unrecognized faces
+default_name = "Unknown"
+
+# Loop through each detected face and compare it with known encodings
+for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+    matches = fr.compare_faces(known_name_encodings, face_encoding)
+    name = ""
+
+    # Calculate face distances to find the best match
+    face_distances = fr.face_distance(known_name_encodings, face_encoding)
+    best_match = np.argmin(face_distances)
+
+   # If a match is found, assign the name associated with the best match
+    if matches[best_match]:
+        name = known_names[best_match]
+
+   # Draw rectangles around the detected faces and display the name
+    cv2.rectangle(image, (left, top), (right, bottom), (0, 0, 255), 2)
+    cv2.rectangle(image, (left, bottom - 15), (right, bottom), (0, 0, 255), cv2.FILLED)
+    font = cv2.FONT_HERSHEY_DUPLEX
+    cv2.putText(image, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+
+  # Display the annotated image
+    cv2_imshow(image)
+
+# Save the annotated image
+cv2.imwrite("./output.jpg", image)
+
+# Wait for a key press and close all OpenCV windows
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+
